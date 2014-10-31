@@ -1,14 +1,13 @@
 {
-  "name": "UPS Label App",
+  "name": "Easypost App",
   "author": {
-    "name": "Zendesk Services / Rose Trujillo",
+    "name": "Zendesk Services",
     "email": "services@zendesk.com"
   },
   "defaultLocale": "en",
   "private": true,
   "location": [ "ticket_sidebar" ],
-  "domainWhitelst": [ "https://onlinetools.ups.com", "https://wwwcie.ups.com" ],
-  "version": "1.3.1",
+  "version": "1.0.0",
   "frameworkVersion": "1.0",
 
   "parameters": [
@@ -81,7 +80,7 @@
     {
       "name": "user_zip_field",
       "type": "text",
-      "default": "zip code"
+      "default": "zip"
     },
     {
       "name": "user_country_field",
@@ -149,24 +148,13 @@
       "default": "15"
     },
     {
-      "name": "ups_username",
+      "name": "easypost_testing_token",
       "type": "text",
       "required": true
     },
     {
-      "name": "ups_password",
-      "type": "password",
-      "required": true
-    },
-    {
-      "name": "ups_access_number",
-      "type": "text",
-      "required": true
-    },
-    {
-      "name": "ups_shipper_number",
-      "type": "text",
-      "required": true
+      "name": "easypost_production_token",
+      "type": "text"
     },
     {
       "name": "tracking_field",

@@ -34,21 +34,24 @@
     userNewParams: null,
     confirmed: true,
     productionOn: null,
-    productionAPI: 'https://onlinetools.ups.com/webservices/Ship',
-    testingAPI: 'https://wwwcie.ups.com/webservices/Ship',
     requests: {
       fetchUserFromZendesk: function () {
         return {
           url: helpers.fmt('/api/v2/users/%@.json', this.requesterId)
         };
       },
-      requestShipping: function (envelope, url) {
+      requestShipping: function (data) {
+        var production;
+        if (this.setting('production_on') === true) {
+          production = true;
+        } else {
+          production = false;
+        }
         return {
-          url: url,
+          url: 'https://api.easypost.com/v2/shipments',
           type: 'POST',
-          dataType: 'xml',
-          data: envelope,
-          contentType: 'application/xml',
+          data: data,
+          headers: {"Authorization": "Basic " + btoa(this.setting('easypost_testing_token') + ":")}
           // secure: true
         };
       },
@@ -142,62 +145,61 @@
       this.$('.update-confirm').fadeIn();
       this.$('.create').fadeOut();
     },
-    getJSONfromSOAPenvelope: function(soap) {
-      var json = null;
-      try {
-        json = JSON.parse(this.$(soap).text());
-        // json = this.prettifyJSON(json);
-      } catch(e) { console.log("ee!", e); }
-      return json;
-    },
     onRequestShippingDone: function(data) {
-     var xmlResponse = data.documentElement;
-     var comment;
-      if ( xmlResponse.getElementsByTagName('TrackingNumber').length > 0 ) {
-        var tracking_number = xmlResponse.getElementsByTagName('TrackingNumber')[0].childNodes[0].nodeValue;
-        if ( xmlResponse.getElementsByTagName('GraphicImage').length > 0 ){ // what is this for? IF it has the image
-            var imageData = xmlResponse.getElementsByTagName('GraphicImage')[0].childNodes[0].nodeValue;
-            comment = "![label_image](data:image;base64," + imageData.replace(' ', '') + ") Tracking Number: " + tracking_number;
-            if ( this.setting('tracking_field') ) {
-              console.log("Log: Tracking field enabled.");
-              // this.ticket().customField("custom_field_" + this.setting('tracking_field'), tracking_number ); //TODO: remove
-              this.ajax('updateTicketComment', comment, tracking_number);
-            } else {
-              this.ajax('updateTicketComment', comment);
-            }
-            services.notify('Label has been sent to customer and attached to this ticket. Refresh to see updates to this ticket.');
-            this.switchTo('button');
 
 
 
-        } else if ( xmlResponse.getElementsByTagName('LabelURL').length > 0) { // what is this for? IF it has the label URL
-          var labelUrl = xmlResponse.getElementsByTagName('LabelURL')[0].childNodes[0].nodeValue;
-          comment = 'UPS temporary Label URL: ' + labelUrl + ' / Tracking Number: ' + tracking_number;
-          if ( this.setting('tracking_field') ) {
-            console.log("Log: Tracking field enabled.");
-            // this.ticket().customField("custom_field_" + this.setting('tracking_field'), tracking_number ); //TODO: remove
-            this.ajax('updateTicketComment', comment, tracking_number);
-          } else {
-            this.ajax('updateTicketComment', comment);
-          }
-          services.notify('Label has been sent to customer and attached to this ticket. Refresh to see updates to this ticket.');
-          this.switchTo('button');
+    console.log(data);
+
+    // old stuff
+
+     // var xmlResponse = data.documentElement;
+     // var comment;
+     //  if ( xmlResponse.getElementsByTagName('TrackingNumber').length > 0 ) {
+     //    var tracking_number = xmlResponse.getElementsByTagName('TrackingNumber')[0].childNodes[0].nodeValue;
+     //    if ( xmlResponse.getElementsByTagName('GraphicImage').length > 0 ){ // what is this for? IF it has the image
+     //        var imageData = xmlResponse.getElementsByTagName('GraphicImage')[0].childNodes[0].nodeValue;
+     //        comment = "![label_image](data:image;base64," + imageData.replace(' ', '') + ") Tracking Number: " + tracking_number;
+     //        if ( this.setting('tracking_field') ) {
+     //          console.log("Log: Tracking field enabled.");
+     //          // this.ticket().customField("custom_field_" + this.setting('tracking_field'), tracking_number ); //TODO: remove
+     //          this.ajax('updateTicketComment', comment, tracking_number);
+     //        } else {
+     //          this.ajax('updateTicketComment', comment);
+     //        }
+     //        services.notify('Label has been sent to customer and attached to this ticket. Refresh to see updates to this ticket.');
+     //        this.switchTo('button');
 
 
 
-        } else {
-        //if ( xmlResponse.getElementsByTagName('Alert').length > 0 ) {
-          var lookup = xmlResponse.getElementsByTagName('TrackingNumber')[0].childNodes[0].nodeValue;
-          this.ajax('updateTicketComment', 'See carrier for more details - Tracking Number: ' + lookup, lookup);
-          services.notify('Your shipment needs additional preparation. TrackingNumber: ', lookup);
-        }
-      }
-      else if ( xmlResponse.getElementsByTagName('PrimaryErrorCode').length > 0 || xmlResponse.getElementsByTagName('faultstring').length > 0 ) {
-          var error = xmlResponse.getElementsByTagName('Description')[0].childNodes[0].nodeValue;
-          services.notify("Shipping error: "+ error + ". Please check your information and try again", "error");
-          console.log("error:", error);
-          this.switchTo('button');
-      }
+     //    } else if ( xmlResponse.getElementsByTagName('LabelURL').length > 0) { // what is this for? IF it has the label URL
+     //      var labelUrl = xmlResponse.getElementsByTagName('LabelURL')[0].childNodes[0].nodeValue;
+     //      comment = 'UPS temporary Label URL: ' + labelUrl + ' / Tracking Number: ' + tracking_number;
+     //      if ( this.setting('tracking_field') ) {
+     //        console.log("Log: Tracking field enabled.");
+     //        // this.ticket().customField("custom_field_" + this.setting('tracking_field'), tracking_number ); //TODO: remove
+     //        this.ajax('updateTicketComment', comment, tracking_number);
+     //      } else {
+     //        this.ajax('updateTicketComment', comment);
+     //      }
+     //      services.notify('Label has been sent to customer and attached to this ticket. Refresh to see updates to this ticket.');
+     //      this.switchTo('button');
+
+
+
+     //    } else {
+     //    //if ( xmlResponse.getElementsByTagName('Alert').length > 0 ) {
+     //      var lookup = xmlResponse.getElementsByTagName('TrackingNumber')[0].childNodes[0].nodeValue;
+     //      this.ajax('updateTicketComment', 'See carrier for more details - Tracking Number: ' + lookup, lookup);
+     //      services.notify('Your shipment needs additional preparation. TrackingNumber: ', lookup);
+     //    }
+     //  }
+     //  else if ( xmlResponse.getElementsByTagName('PrimaryErrorCode').length > 0 || xmlResponse.getElementsByTagName('faultstring').length > 0 ) {
+     //      var error = xmlResponse.getElementsByTagName('Description')[0].childNodes[0].nodeValue;
+     //      services.notify("Shipping error: "+ error + ". Please check your information and try again", "error");
+     //      console.log("error:", error);
+     //      this.switchTo('button');
+     //  }
     },
     onUserFetched: function(data) {
       this.userObj = data.user;
@@ -239,48 +241,49 @@
         this.confirmed = false;
         return false;
       }
-      var ship_params = {};
-          ship_params.name = this.$('input[name=name]').val();
-          ship_params.address = this.$('input[name=address]').val();
-          ship_params.city = this.$('input[name=city]').val();
-          ship_params.country = this.$('input[name=country]').val().toUpperCase().substring(0, 2);
-          ship_params.state = this.$('input[name=state]').val().toUpperCase();
-          if ( this.$('input[name=zip_code]').val().length > 0 ){
-            ship_params.zip = this.$('input[name=zip_code]').val().match(/[a-z0-9]/ig).join("");
-          }
-          ship_params.email = this.$('input[name=email]').val();
-          ship_params.shipto_name = this.$('input[name=shipto_name]').val() || this.setting('company_name');
-          ship_params.shipto_address = this.$('input[name=shipto_address]').val() || this.setting('business_address');
-          ship_params.shipto_city = this.$('input[name=shipto_city]').val() || this.setting('city');
-          ship_params.shipto_state = this.$('input[name=shipto_state]').val() || this.setting('state').toUpperCase();
-          ship_params.shipto_country = this.$('input[name=shipto_country]').val() || this.setting('country_code').toUpperCase();
-          ship_params.shipto_zip_code = this.$('input[name=shipto_zip_code]').val() || this.setting('zip_code');
-          ship_params.ship_type = this.$('#ship_type').val();
+      var shipment = {
+        "from_address": {},
+        "to_address": {},
+        "parcel": {}
+      };
+      // from address
+      shipment.from_address.name = this.$('input[name=name]').val();
+      shipment.from_address.street1 = this.$('input[name=address]').val();
+      shipment.from_address.city = this.$('input[name=city]').val();
+      shipment.from_address.country = this.$('input[name=country]').val().toUpperCase().substring(0, 2);
+      shipment.from_address.state = this.$('input[name=state]').val().toUpperCase();
+      if ( this.$('input[name=zip_code]').val().length > 0 ){
+        shipment.from_address.zip = this.$('input[name=zip_code]').val().match(/[a-z0-9]/ig).join("");
+      }
+      shipment.from_address.email = this.$('input[name=email]').val();
+      // to address
+      shipment.to_address.name = this.$('input[name=shipto_name]').val() || this.setting('company_name');
+      shipment.to_address.street1 = this.$('input[name=shipto_address]').val() || this.setting('business_address');
+      shipment.to_address.city = this.$('input[name=shipto_city]').val() || this.setting('city');
+      shipment.to_address.state = this.$('input[name=shipto_state]').val() || this.setting('state').toUpperCase();
+      shipment.to_address.country = this.$('input[name=shipto_country]').val() || this.setting('country_code').toUpperCase();
+      shipment.to_address.zip = this.$('input[name=shipto_zip_code]').val() || this.setting('zip_code');
 
-      ship_params.psize = this.sizes[this.$('select#package_size').val()];
-      ship_params.ticketId = this.ticket().id();
+      // shipment.psize = this.sizes[this.$('select#package_size').val()];
+      var dimensions = this.sizes[this.$('select#package_size').val()];
+      // shipment.parcel.length = dimensions.length;
+      // shipment.parcel.height = dimensions.height;
+      // shipment.parcel.width = dimensions.width;
+      shipment.parcel.weight = dimensions.weight;
+      shipment.parcel.predefined_package = 'LargeFlatRateBox';
 
-      for (var key in ship_params) {
-        if (!ship_params[key]) {
+      for (var key in shipment) {
+        if (!shipment[key]) {
           services.notify('Please fill in the field for "' + key + '" before continuing.');
           return false;
         }
       }
-      ship_params.intl = ship_params.ship_type === "12";
-      if (this.$('#dollarVal').val().length > 0) {
-        ship_params.dollar = this.$('#dollarVal').val().match(/\d/g).join("");
-      }
-      if (this.$('input[name=product]').val().length > 0) {
-        ship_params.product = this.$('input[name=product]').val();
-      }
-      if (ship_params.state.length > 2) { services.notify("Please use the 2-letter code for State or Province before submitting"); return;}
-      ship_params.date = this.today();
+      if (shipment.from_address.state.length > 2) { services.notify("Please use the 2-letter code for State or Province before submitting"); return;}
       this.switchTo('loading');
-      var endpt = this.productionOn ? this.productionAPI : this.testingAPI;
-      this.ajax('requestShipping',
-        this.renderTemplate('envelope', {
-        fparams: ship_params
-      }), endpt);
+      var data = {
+        "shipment": shipment
+      };
+      this.ajax('requestShipping', data);
     },
     onUserUpdated: function(e) {
        var self = this,
