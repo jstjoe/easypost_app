@@ -14,37 +14,44 @@
     {
       "name": "company_name",
       "type": "text",
-      "required": true
+      "required": true,
+      "default": "Zendesk"
     },
     {
       "name": "attention_name",
       "type": "text",
-      "required": true
+      "required": true,
+      "default": "Support"
     },
     {
       "name": "business_address",
       "type": "text",
-      "required": true
+      "required": true,
+      "default": "989 Market St"
     },
     {
       "name": "city",
       "type": "text",
-      "required": true
+      "required": true,
+      "default": "San Francisco"
     },
     {
       "name": "state",
       "type": "text",
-      "required": true
+      "required": true,
+      "default": "CA"
     },
     {
       "name": "country_code",
       "type": "text",
-      "required": true
+      "required": true,
+      "default": "US"
     },
     {
       "name": "zip_code",
       "type": "number",
-      "required": true
+      "required": true,
+      "default": 94103
     },
     {
       "name": "support_email",
@@ -55,7 +62,8 @@
     {
       "name": "phone_number",
       "type": "number",
-      "required": true
+      "required": true,
+      "default": "555-555-5555"
     },
     {
       "name": "editable_form",
@@ -158,7 +166,8 @@
     },
     {
       "name": "tracking_field",
-      "type": "number"
+      "type": "number",
+      "default": 24126826
     },
     {
       "name": "production_on",
