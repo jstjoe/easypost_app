@@ -34,18 +34,66 @@
     userNewParams: null,
     confirmed: true,
     productionOn: null,
+    events: {
+      'app.created':'onAppActivated',
+
+      'change #package_size': 'onSizeChanged',
+      'change .user-info': 'onUserUpdated',
+      'change #ship_type': 'onShipSelected',
+      'click button.initialize': 'init',
+      'click .update-decline': 'userUpdateDecline',
+      'click .update-user': 'userUpdateConfirm',
+      'click .create_address': 'onAddressSubmitted',
+      'click .create_shipment': 'onShipmentSubmitted',
+      // Zendesk requests
+      'fetchUserFromZendesk.done': 'onUserFetched',
+      // EasyPost Requests
+      'verifyAddress.done': 'onVerifyAddressDone',
+      'createAddress.done': 'onCreateAddressDone',
+      'createShipment.done': 'onCreateShipmentDone',
+      
+    },
     requests: {
       fetchUserFromZendesk: function () {
         return {
           url: helpers.fmt('/api/v2/users/%@.json', this.requesterId)
         };
       },
-      requestShipping: function (data) {
-        var production;
+      // easypost requests
+      createAddress: function(data) {
+        var token;
         if (this.setting('production_on') === true) {
-          production = true;
+          token = btoa(this.setting('easypost_production_token') + ":");
         } else {
-          production = false;
+          token = btoa(this.setting('easypost_testing_token') + ":");
+        }
+        return {
+          url: 'https://api.easypost.com/v2/addresses',
+          type: 'POST',
+          data: data,
+          headers: {"Authorization": "Basic " + token}
+          // secure: true
+        };
+      },
+      verifyAddress: function(id) {
+        var token;
+        if (this.setting('production_on') === true) {
+          token = btoa(this.setting('easypost_production_token') + ":");
+        } else {
+          token = btoa(this.setting('easypost_testing_token') + ":");
+        }
+        return {
+          url: 'https://api.easypost.com/v2/addresses/' + id + '/verify',
+          headers: {"Authorization": "Basic " + token}
+        };
+      },
+
+      createShipment: function (data) {
+        var token;
+        if (this.setting('production_on') === true) {
+          token = btoa(this.setting('easypost_production_token') + ":");
+        } else {
+          token = btoa(this.setting('easypost_testing_token') + ":");
         }
         return {
           url: 'https://api.easypost.com/v2/shipments',
@@ -55,6 +103,9 @@
           // secure: true
         };
       },
+      
+
+      // Zendesk requests
       updateTicketComment: function (comment, track) {
         var field = this.setting('tracking_field');
         console.log("Tracking number: " + track);
@@ -72,28 +123,17 @@
           contentType: 'application/json',
           data: helpers.fmt( '{ "user": { "user_fields": %@ }}', JSON.stringify(this.userNewParams) )
         };
+      },
+      updateNameOnly: function (name) {
+        return {
+          url: helpers.fmt('/api/v2/users/%@.json', this.requesterId),
+          type: 'PUT',
+          contentType: 'application/json',
+          data: helpers.fmt('{ "user": { "name": "%@" }}', name )
+        };
+      }
     },
-    updateNameOnly: function (name) {
-      return {
-        url: helpers.fmt('/api/v2/users/%@.json', this.requesterId),
-        type: 'PUT',
-        contentType: 'application/json',
-        data: helpers.fmt('{ "user": { "name": "%@" }}', name )
-      };
-    }
-    },
-    events: {
-      'app.activated':'onAppActivated',
-      'change #package_size': 'onSizeChanged',
-      'change .user-info': 'onUserUpdated',
-      'change #ship_type': 'onShipSelected',
-      'click button.initialize': 'showForm',
-      'click .update-decline': 'userUpdateDecline',
-      'click .update-user': 'userUpdateConfirm',
-      'click a.create': 'onFormSubmitted',
-      'fetchUserFromZendesk.done': 'onUserFetched',
-      'requestShipping.done': 'onRequestShippingDone'
-    },
+
     onAppActivated: function(app) {
       if (this.setting('editable_form') === true) {
         this.editableForm = true;
@@ -128,84 +168,167 @@
         }
       };
     },
-    showForm: function() {
-      this.switchTo('form', {"hide": this.editableForm});
-      this.ajax('fetchUserFromZendesk');
-      this.setUpShipToForm();
+    init: function(e) {
+      if(e) {e.preventDefault();}
+      this.showForm();
     },
-    setUpShipToForm: function() {
-      this.$('input[name=shipto_name]').val(this.setting("company_name"));
-      this.$('input[name=shipto_address]').val(this.setting("business_address"));
-      this.$('input[name=shipto_city]').val(this.setting("city"));
-      this.$('input[name=shipto_state]').val(this.setting("state"));
-      this.$('input[name=shipto_zip_code]').val(this.setting("zip_code"));
-      this.$('input[name=shipto_country]').val(this.setting("country_code"));
+    showForm: function(response) {
+      if(response) {
+        if(!response.message) {
+          // TODO ask if Agent wants to update user with validated address
+          this.switchTo('form', {
+            "show": this.editableForm,
+            "message": "Address validated!"
+          });
+          this.$('.create_address').hide();
+        } else {
+          this.switchTo('form', {
+            "show": this.editableForm,
+            "message": response.message
+          });
+          this.$('.create_shipment').prop('disabled', true);
+        }
+        this.setUpShipToForm(response.address);
+      } else {
+        this.ajax('fetchUserFromZendesk');
+        this.switchTo('form', {
+          "show": this.editableForm
+        });
+        this.setUpShipToForm();
+      }
+      
     },
+    setUpShipToForm: function(address) {
+      if(address) {
+        this.$('input[name=name]').val(address.name);
+        this.$('input[name=address]').val(address.street1);
+        this.$('input[name=city]').val(address.city);
+        this.$('input[name=state]').val(address.state);
+        this.$('input[name=zip_code]').val(address.zip);
+        this.$('input[name=country]').val(address.country);
+      }
+      this.$('input[name=origin_name]').val(this.setting("company_name"));
+      this.$('input[name=origin_address]').val(this.setting("business_address"));
+      this.$('input[name=origin_city]').val(this.setting("city"));
+      this.$('input[name=origin_state]').val(this.setting("state"));
+      this.$('input[name=origin_zip_code]').val(this.setting("zip_code"));
+      this.$('input[name=origin_country]').val(this.setting("country_code"));
+      
+    },
+    onAddressSubmitted: function(e) {
+      if (e) { e.preventDefault(); }
+      // if (this.userNewParams) {
+      //   this.showUpdateUserOption();
+      //   this.confirmed = false;
+      //   return false;
+      // }
+      var address = {};
+      // to address
+      address.name = this.$('input[name=name]').val() || this.setting('company_name');
+      address.street1 = this.$('input[name=address]').val() || this.setting('business_address');
+      address.city = this.$('input[name=city]').val() || this.setting('city');
+      address.state = this.$('input[name=state]').val() || this.setting('state').toUpperCase();
+      address.country = this.$('input[name=country]').val() || this.setting('country_code').toUpperCase();
+      address.zip = this.$('input[name=zip_code]').val() || this.setting('zip_code');
+
+      for (var key in address) {
+        if (!address[key]) {
+          services.notify('Please fill in the field for "' + key + '" before continuing.');
+          return false;
+        }
+      }
+      if (address.state.length > 2) { services.notify("Please use the 2-letter code for State or Province before submitting"); return;}
+      this.switchTo('loading');
+      var data = {
+        "address": address
+      };
+      this.ajax('createAddress', data);
+    },
+    onCreateAddressDone: function(response) {
+      var addressID = response.id;
+      this.ajax('verifyAddress', addressID);
+      // console.log(response);
+      // this.switchTo('button');
+    },
+    onVerifyAddressDone: function(response) {
+      this.showForm(response);
+    },
+    onShipmentSubmitted: function(e) {
+      if (e) { e.preventDefault(); }
+      if (this.userNewParams) {
+        this.showUpdateUserOption();
+        this.confirmed = false;
+        return false;
+      }
+      var shipment = {
+        "from_address": {},
+        "to_address": {},
+        "parcel": {}
+      };
+      // from address
+      shipment.from_address.name = this.$('input[name=name]').val();
+      shipment.from_address.street1 = this.$('input[name=address]').val();
+      shipment.from_address.city = this.$('input[name=city]').val();
+      shipment.from_address.country = this.$('input[name=country]').val().toUpperCase().substring(0, 2);
+      shipment.from_address.state = this.$('input[name=state]').val().toUpperCase();
+      if ( this.$('input[name=zip_code]').val().length > 0 ){
+        shipment.from_address.zip = this.$('input[name=zip_code]').val().match(/[a-z0-9]/ig).join("");
+      }
+      shipment.from_address.email = this.$('input[name=email]').val();
+
+      // to address
+      shipment.to_address.name = this.$('input[name=origin_name]').val() || this.setting('company_name');
+      shipment.to_address.street1 = this.$('input[name=origin_address]').val() || this.setting('business_address');
+      shipment.to_address.city = this.$('input[name=origin_city]').val() || this.setting('city');
+      shipment.to_address.state = this.$('input[name=origin_state]').val() || this.setting('state').toUpperCase();
+      shipment.to_address.country = this.$('input[name=origin_country]').val() || this.setting('country_code').toUpperCase();
+      shipment.to_address.zip = this.$('input[name=origin_zip_code]').val() || this.setting('zip_code');
+
+      // shipment.psize = this.sizes[this.$('select#package_size').val()];
+      var dimensions = this.sizes[this.$('select#package_size').val()];
+      // shipment.parcel.length = dimensions.length;
+      // shipment.parcel.height = dimensions.height;
+      // shipment.parcel.width = dimensions.width;
+      shipment.parcel.weight = dimensions.weight;
+      shipment.parcel.predefined_package = 'LargeFlatRateBox';
+
+      for (var key in shipment) {
+        if (!shipment[key]) {
+          services.notify('Please fill in the field for "' + key + '" before continuing.');
+          return false;
+        }
+      }
+      if (shipment.from_address.state.length > 2) { services.notify("Please use the 2-letter code for State or Province before submitting"); return;}
+      this.switchTo('loading');
+      var data = {
+        "shipment": shipment
+      };
+      this.ajax('createShipment', data);
+    },
+    onCreateShipmentDone: function(response) {
+      console.log(response.rates);
+      this.switchTo('rates', {
+        "rates":response.rates
+      });
+    },
+    onShipSelected: function(e) {
+      if (this.$(e.target).val() == "12") {
+        this.$('.valueBox').show();
+      } else {
+        this.$('.valueBox').hide();
+      }
+    },
+
+
     showUpdateUserOption: function() {
       this.$('.update-confirm').fadeIn();
       this.$('.create').fadeOut();
-    },
-    onRequestShippingDone: function(data) {
-
-
-
-    console.log(data);
-
-    // old stuff
-
-     // var xmlResponse = data.documentElement;
-     // var comment;
-     //  if ( xmlResponse.getElementsByTagName('TrackingNumber').length > 0 ) {
-     //    var tracking_number = xmlResponse.getElementsByTagName('TrackingNumber')[0].childNodes[0].nodeValue;
-     //    if ( xmlResponse.getElementsByTagName('GraphicImage').length > 0 ){ // what is this for? IF it has the image
-     //        var imageData = xmlResponse.getElementsByTagName('GraphicImage')[0].childNodes[0].nodeValue;
-     //        comment = "![label_image](data:image;base64," + imageData.replace(' ', '') + ") Tracking Number: " + tracking_number;
-     //        if ( this.setting('tracking_field') ) {
-     //          console.log("Log: Tracking field enabled.");
-     //          // this.ticket().customField("custom_field_" + this.setting('tracking_field'), tracking_number ); //TODO: remove
-     //          this.ajax('updateTicketComment', comment, tracking_number);
-     //        } else {
-     //          this.ajax('updateTicketComment', comment);
-     //        }
-     //        services.notify('Label has been sent to customer and attached to this ticket. Refresh to see updates to this ticket.');
-     //        this.switchTo('button');
-
-
-
-     //    } else if ( xmlResponse.getElementsByTagName('LabelURL').length > 0) { // what is this for? IF it has the label URL
-     //      var labelUrl = xmlResponse.getElementsByTagName('LabelURL')[0].childNodes[0].nodeValue;
-     //      comment = 'UPS temporary Label URL: ' + labelUrl + ' / Tracking Number: ' + tracking_number;
-     //      if ( this.setting('tracking_field') ) {
-     //        console.log("Log: Tracking field enabled.");
-     //        // this.ticket().customField("custom_field_" + this.setting('tracking_field'), tracking_number ); //TODO: remove
-     //        this.ajax('updateTicketComment', comment, tracking_number);
-     //      } else {
-     //        this.ajax('updateTicketComment', comment);
-     //      }
-     //      services.notify('Label has been sent to customer and attached to this ticket. Refresh to see updates to this ticket.');
-     //      this.switchTo('button');
-
-
-
-     //    } else {
-     //    //if ( xmlResponse.getElementsByTagName('Alert').length > 0 ) {
-     //      var lookup = xmlResponse.getElementsByTagName('TrackingNumber')[0].childNodes[0].nodeValue;
-     //      this.ajax('updateTicketComment', 'See carrier for more details - Tracking Number: ' + lookup, lookup);
-     //      services.notify('Your shipment needs additional preparation. TrackingNumber: ', lookup);
-     //    }
-     //  }
-     //  else if ( xmlResponse.getElementsByTagName('PrimaryErrorCode').length > 0 || xmlResponse.getElementsByTagName('faultstring').length > 0 ) {
-     //      var error = xmlResponse.getElementsByTagName('Description')[0].childNodes[0].nodeValue;
-     //      services.notify("Shipping error: "+ error + ". Please check your information and try again", "error");
-     //      console.log("error:", error);
-     //      this.switchTo('button');
-     //  }
     },
     onUserFetched: function(data) {
       this.userObj = data.user;
       var user = this.userObj;
       this.$('input[name=name]').val(user.name);
-      this.$('input[name=email]').val(user.email);
+      // this.$('input[name=email]').val(user.email);
       if (user.user_fields) {
         this.$('input[name=address]').val(user.user_fields[this.fmtd(this.setting('user_address_field'))]);
         this.$('input[name=city]').val(user.user_fields[this.fmtd(this.setting('user_city_field'))]);
@@ -234,57 +357,8 @@
         this.ajax('fetchUserFromZendesk');
       }
     },
-    onFormSubmitted: function(e) {
-      if (e) { e.preventDefault(); }
-      if (this.userNewParams) {
-        this.showUpdateUserOption();
-        this.confirmed = false;
-        return false;
-      }
-      var shipment = {
-        "from_address": {},
-        "to_address": {},
-        "parcel": {}
-      };
-      // from address
-      shipment.from_address.name = this.$('input[name=name]').val();
-      shipment.from_address.street1 = this.$('input[name=address]').val();
-      shipment.from_address.city = this.$('input[name=city]').val();
-      shipment.from_address.country = this.$('input[name=country]').val().toUpperCase().substring(0, 2);
-      shipment.from_address.state = this.$('input[name=state]').val().toUpperCase();
-      if ( this.$('input[name=zip_code]').val().length > 0 ){
-        shipment.from_address.zip = this.$('input[name=zip_code]').val().match(/[a-z0-9]/ig).join("");
-      }
-      shipment.from_address.email = this.$('input[name=email]').val();
-      // to address
-      shipment.to_address.name = this.$('input[name=shipto_name]').val() || this.setting('company_name');
-      shipment.to_address.street1 = this.$('input[name=shipto_address]').val() || this.setting('business_address');
-      shipment.to_address.city = this.$('input[name=shipto_city]').val() || this.setting('city');
-      shipment.to_address.state = this.$('input[name=shipto_state]').val() || this.setting('state').toUpperCase();
-      shipment.to_address.country = this.$('input[name=shipto_country]').val() || this.setting('country_code').toUpperCase();
-      shipment.to_address.zip = this.$('input[name=shipto_zip_code]').val() || this.setting('zip_code');
 
-      // shipment.psize = this.sizes[this.$('select#package_size').val()];
-      var dimensions = this.sizes[this.$('select#package_size').val()];
-      // shipment.parcel.length = dimensions.length;
-      // shipment.parcel.height = dimensions.height;
-      // shipment.parcel.width = dimensions.width;
-      shipment.parcel.weight = dimensions.weight;
-      shipment.parcel.predefined_package = 'LargeFlatRateBox';
-
-      for (var key in shipment) {
-        if (!shipment[key]) {
-          services.notify('Please fill in the field for "' + key + '" before continuing.');
-          return false;
-        }
-      }
-      if (shipment.from_address.state.length > 2) { services.notify("Please use the 2-letter code for State or Province before submitting"); return;}
-      this.switchTo('loading');
-      var data = {
-        "shipment": shipment
-      };
-      this.ajax('requestShipping', data);
-    },
+    // User updates
     onUserUpdated: function(e) {
        var self = this,
           newVal = this.$(e.target).val();
@@ -310,27 +384,21 @@
           break;
       }
     },
-    onShipSelected: function(e) {
-      if (this.$(e.target).val() == "12") {
-        this.$('.valueBox').show();
-      } else {
-        this.$('.valueBox').hide();
-      }
-    },
-    // TODO: dry up these two
+      // TODO: dry up these two
     userUpdateConfirm: function(e) {
       this.ajax('updateUser');
       this.$('#update-confirm').fadeOut();
       this.userNewParams = null;
-      this.onFormSubmitted();
+      this.onShipmentSubmitted();
       e.preventDefault();
     },
     userUpdateDecline: function(e) {
       this.$('.update-confirm').fadeOut();
       this.userNewParams = null;
-      this.onFormSubmitted();
+      this.onShipmentSubmitted();
       e.preventDefault();
     },
+
   // --------- UTILITY FUNCTIONS --------- //
     fmtd: function(str) {
       return str.toLowerCase().replace(' ', '_');

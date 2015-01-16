@@ -1,23 +1,28 @@
 <div id="result"></div>
+{{#if message}}
+  <div class="response_message alert">
+    {{message}}
+  </div>
+{{/if}}
 <form class="form search">
-  <h4> Ship From: </h4>
+  <h4>Destination: </h4>
   <input tabindex="1" type="text" placeholder="Customer Name" name="name" class="input-small user-info"/>
   <input tabindex="2" type="text" placeholder="Address" name="address" class="input-small user-info"/>
   <input tabindex="3" type="text" placeholder="City" name="city" class="input-small user-info"/>
   <input tabindex="4" type="text" placeholder="State" name="state" class="input-small user-info" maxlength="2"/>
   <input tabindex="5" type="text" placeholder="Country" name="country" class="input-small user-info" maxlength="2"/>
   <input tabindex="6" type="text" placeholder="Zip Code" name="zip_code" class="input-small user-info"/>
-  <input tabindex="7" type="text" placeholder="Email" name="email" class="input-small user-info"/>
+  {{!-- <input tabindex="7" type="text" placeholder="Email" name="email" class="input-small user-info"/> --}}
   <br/><br/>
-  {{#if hide}}
-  <h4> Ship To: </h4>
-  <input tabindex="8" type="text" placeholder="Name" name="shipto_name" class="input-small"/>
-  <input tabindex="9" type="text" placeholder="Address" name="shipto_address" class="input-small"/>
-  <input tabindex="10" type="text" placeholder="City" name="shipto_city" class="input-small"/>
-  <input tabindex="11" type="text" placeholder="State" name="shipto_state" class="input-small" maxlength="2"/>
-  <input tabindex="12" type="text" placeholder="Country" name="shipto_country" class="input-small" maxlength="2"/>
-  <input tabindex="13" type="text" placeholder="Zip Code" name="shipto_zip_code" class="input-small"/>
-  <br/><br/>
+  {{#if show}}
+    <h4>Origin: </h4>
+    <input tabindex="8" type="text" placeholder="Name" name="origin_name" class="input-small"/>
+    <input tabindex="9" type="text" placeholder="Address" name="origin_address" class="input-small"/>
+    <input tabindex="10" type="text" placeholder="City" name="origin_city" class="input-small"/>
+    <input tabindex="11" type="text" placeholder="State" name="origin_state" class="input-small" maxlength="2"/>
+    <input tabindex="12" type="text" placeholder="Country" name="origin_country" class="input-small" maxlength="2"/>
+    <input tabindex="13" type="text" placeholder="Zip Code" name="origin_zip_code" class="input-small"/>
+    <br/><br/>
   {{/if}}
   <h4>Package Information: </h4>
   <label>Size</label>
@@ -51,7 +56,8 @@
     <input type="text" tabindex="16" name="product"/>
     <br/><br/>
   </div>
-  <a tabindex="17" class="btn create">Generate Shipping Label</a>
+  <button tabindex="17" class="btn create_address">Validate Address</button>
+  <button tabindex="17" class="btn btn-primary pull-right create_shipment">Create Shipment</button>
 </form>
 <div class="update-confirm">
     <h3>Update User?</h3>

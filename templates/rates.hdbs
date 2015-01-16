@@ -1,0 +1,9 @@
+<h4>Available Rates:</h4>
+<div class="rates well well-small">
+  {{#each rates}}
+    {{carrier}}<br>
+    {{service}}<br>
+    {{currency}} {{rate}}
+    {{#unless @last}}<hr>{{/unless}}
+  {{/each}}
+</div>
