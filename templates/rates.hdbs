@@ -1,9 +1,19 @@
 <h4>Available Rates:</h4>
 <div class="rates well well-small">
   {{#each rates}}
-    {{carrier}}<br>
-    {{service}}<br>
-    {{currency}} {{rate}}
+    <button class="btn pull-right select_rate" data-rate-id="{{id}}">Select</button>
+    Carrier: {{carrier}}<br>
+    Service: {{service}}<br>
+    Cost: {{currency}} {{rate}}<br>
+    {{#if delivery_days}}
+      Delivered in: {{delivery_days}} days<br>
+    {{/if}}
+    {{#if delivery_date}}
+      Delivered by: {{delivery_date}}<br>
+    {{/if}}
+    {{#if delivery_date_guaranteed}}
+      Delivery Date Guaranteed? {{delivery_date_guaranteed}}<br>
+    {{/if}}
     {{#unless @last}}<hr>{{/unless}}
   {{/each}}
 </div>

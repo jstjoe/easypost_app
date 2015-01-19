@@ -1,0 +1,16 @@
+<h4>Available Rates:</h4>
+<div class="selected_rate well well-small">
+    <button class="btn btn-primary pull-right buy_rate" data-rate-id="{{rate.id}}">Buy</button>
+    Carrier: {{rate.carrier}}<br>
+    Service: {{rate.service}}<br>
+    Cost: {{rate.currency}} {{rate.rate}}<br>
+    {{#if rate.delivery_days}}
+      Delivered in: {{rate.delivery_days}} days<br>
+    {{/if}}
+    {{#if rate.delivery_date}}
+      Delivered by: {{rate.delivery_date}}<br>
+    {{/if}}
+    {{#if rate.delivery_date_guaranteed}}
+      Delivery Date Guaranteed? {{rate.delivery_date_guaranteed}}<br>
+    {{/if}}
+</div>

@@ -1,0 +1,46 @@
+<h4>Success!</h4>
+<div class="created_shipment">
+  {{#with response}}
+    {{#with postage_label}}
+      <img src="{{label_url}}" width="120px" />
+    {{/with}}
+
+    {{#with tracker}}
+      <ul>
+        <li>
+          Status: {{status}}
+        </li>
+        <li>Tracking Code: {{tracking_code}}</li>
+        <li>Est. Delivery Date: {{est_delivery_date}}</li>
+        <li>
+          <h5>Events</h5>
+          {{#each tracking_details}}
+          <ul class="well well-small">
+            <li>{{message}}</li>
+            <li>{{datetime}}</li>
+            {{#with tracking_location}}
+              <li>{{city}}{{#if state}}, {{state}}{{/if}}</li>
+              <li>{{country}}</li>
+              <li>{{zip}}</li>
+            {{/with}}
+          </ul>
+          {{/each}}
+        </li>
+    {{/with}}
+
+    {{#with selected_rate}}
+      <li>Carrier: {{carrier}}</li>
+      <li>Service: {{service}}</li>
+
+    {{/with}}
+    <li>
+      <h5>Fees</h5>
+    {{#each fees}}
+      <ul class="well well-small">
+        <li>Fee Type: {{type}}</li>
+        <li>Fee Amount: {{amount}}</li>
+      </ul>
+    {{/each}}
+    </li>
+  {{/with}}
+</div>

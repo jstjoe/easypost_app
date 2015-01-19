@@ -1,0 +1,5 @@
+<button class="btn init_new_shipment">New Shipment</button>
+<button class="btn init_return_shipment">Issue Return</button>
+<br><br>
+<button class="btn init_track_shipment">Track Package</button>
+<button class="btn init_validate_address">Validate Address</button>
