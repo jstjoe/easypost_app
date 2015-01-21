@@ -1,0 +1,12 @@
+{
+  "ticket_fields": {
+    "tracking_code": {
+      "type": "text",
+      "title": "Tracking Code"
+    },
+    "tracker_id": {
+      "type": "text",
+      "title": "Tracker ID"
+    }
+  }
+}

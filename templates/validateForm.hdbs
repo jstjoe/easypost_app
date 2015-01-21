@@ -1,0 +1,23 @@
+<div id="result"></div>
+{{#if message}}
+  <div class="response_message alert">
+    {{message}}
+  </div>
+{{/if}}
+<form class="form search">
+  <div class="to_address_container">
+    {{!-- _toAddressForm gets injected here --}}
+  </div>
+  <br/>
+  <br/>
+  <button tabindex="17" class="btn create_address">Validate Address</button>
+</form>
+
+
+<div class="update-confirm">
+  {{!-- shown when the entered address does not match the user's profile --}}
+    <h3>Update User?</h3>
+    <p>Would you like to save this new information to the User's profile?</p>
+    <a class="btn update-decline">Nope</a>
+    <a class="btn btn-primary update-user">Yes</a>
+</div>

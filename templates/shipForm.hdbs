@@ -5,29 +5,11 @@
   </div>
 {{/if}}
 <form class="form search">
-  <h4>Destination: </h4>
-  <label>Name
-    <input tabindex="1" type="text" placeholder="Customer Name" name="name" class="input-large user-info"/>
-  </label>
-  <label>Address
-    <input tabindex="2" type="text" placeholder="Address" name="address" class="input-large user-info"/>
-  </label>
-  <label>Address (Line 2)
-    <input tabindex="3" type="text" placeholder="Address Line 2" name="address2" class="input-large user-info"/>
-  </label>
-  <label>City
-    <input tabindex="4" type="text" placeholder="City" name="city" class="input-large user-info"/>
-  </label>
-  <label>State
-    <input tabindex="5" type="text" placeholder="State" name="state" class="input-large user-info" maxlength="2"/>
-  </label>
-  <label>Country
-    <input tabindex="6" type="text" placeholder="Country" name="country" class="input-large user-info" maxlength="2"/>
-  </label>
-  <label>ZIP
-    <input tabindex="7" type="text" placeholder="Zip Code" name="zip_code" class="input-large user-info"/>
-  </label>
-  <br/><br/>
+  <div class="to_address_container">
+    {{!-- _toAddressForm gets injected here --}}
+  </div>
+  <br/>
+  <br/>
   {{!-- IF the setting that enables the Agent to change the Origin address is checked --}}
   {{#if show}} 
     <h4>Origin: </h4>
@@ -39,8 +21,6 @@
     <input tabindex="13" type="text" placeholder="Zip Code" name="origin_zip_code" class="input-large"/>
     <br/><br/>
   {{/if}}
-
-
   <h4>Package Information: </h4>
   <label>Size</label>
   <select tabindex="13" id="package_size">
@@ -51,21 +31,13 @@
   </select>
   <br/>
   <div class="dimensions">
+    {{!-- shown when Custom is selected --}}
     <input type="text" placeholder="Weight" name="weight" class="input-small"/>
     <input type="text" placeholder="Height" name="height" class="input-small"/>
     <input type="text" placeholder="Width" name="width" class="input-small"/>
     <input type="text" placeholder="Length" name="length" class="input-small"/>
     <br>
   </div>
-
-  {{!-- <label>Shipping Type</label>
-  <select tabindex="14" id="ship_type">
-    <option value="03">Ground</option>
-    <option value="01">One-Day Air</option>
-    <option value="02">Two-Day Air</option>
-    <option value="12">3-Day Intern'tl</option>
-  </select>
-  <br/><br/> --}}
   <div class="valueBox">
     <h4>Approximate Value of Goods*</h4>
     <p>In USD, (e.g. 100 => $1.00)</p>

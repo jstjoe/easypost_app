@@ -7,14 +7,15 @@
     requesterZip: null,
     requesterCountry: null,
     editableForm: null,
-    userObj: null,
+    requester: null,
     userNewParams: null,
     confirmed: true,
     productionOn: null,
     // named events
     events: {
-      'app.created':'onAppActivated',
+      'app.created':'onAppCreated',
 
+      'ticket.requester.id.changed':'onRequesterChanged',
       'change #package_size': 'onSizeChanged',
       'change .user-info': 'onUserUpdated',
       'change #ship_type': 'onShipSelected',
@@ -26,15 +27,16 @@
 
       'click .update-decline': 'userUpdateDecline',
       'click .update-user': 'userUpdateConfirm',
+      
       'click .create_address': 'onAddressSubmitted',
       'click .create_shipment': 'onShipmentSubmitted',
 
       'click .select_rate': 'onRateSelected',
       'click .buy_rate': 'buyRate',
 
-      // Zendesk requests
+      // Zendesk request events
       'fetchUserFromZendesk.done': 'onUserFetched',
-      // EasyPost Requests
+      // EasyPost request events
       'verifyAddress.done': 'onVerifyAddressDone',
       'createAddress.done': 'onCreateAddressDone',
       'createShipment.done': 'onCreateShipmentDone',
@@ -42,11 +44,6 @@
       
     },
     requests: {
-      fetchUserFromZendesk: function () {
-        return {
-          url: helpers.fmt('/api/v2/users/%@.json', this.requesterId)
-        };
-      },
       // easypost requests
       createAddress: function(data) {
         var token = this.token();
@@ -88,9 +85,12 @@
           headers: {"Authorization": "Basic " + token}
         };
       },
-      
-
       // Zendesk requests
+      fetchUserFromZendesk: function () {
+        return {
+          url: helpers.fmt('/api/v2/users/%@.json', this.ticket().requester().id())
+        };
+      },
       updateTicketComment: function (comment, track) {
         var field = this.setting('tracking_field');
         console.log("Tracking number: " + track);
@@ -103,7 +103,7 @@
       },
       updateUser: function () {
         return {
-          url: helpers.fmt('/api/v2/users/%@.json', this.requesterId),
+          url: helpers.fmt('/api/v2/users/%@.json', this.ticket().requester().id()),
           type: 'PUT',
           contentType: 'application/json',
           data: helpers.fmt( '{ "user": { "user_fields": %@ }}', JSON.stringify(this.userNewParams) )
@@ -111,7 +111,7 @@
       },
       updateNameOnly: function (name) {
         return {
-          url: helpers.fmt('/api/v2/users/%@.json', this.requesterId),
+          url: helpers.fmt('/api/v2/users/%@.json', this.ticket().requester().id()),
           type: 'PUT',
           contentType: 'application/json',
           data: helpers.fmt('{ "user": { "name": "%@" }}', name )
@@ -119,7 +119,21 @@
       }
     },
 
-    onAppActivated: function(app) {
+    onAppCreated: function(app) {
+      // TODO disable the tracking field
+      var trackingCodeField = this.requirement('tracking_code'),
+        trackerField = this.requirement('tracker_id');
+      if(this.ticketFields('custom_field_' + trackingCodeField.requirement_id)) {
+        this.ticketFields('custom_field_' + trackingCodeField.requirement_id).disable();
+      } else {
+        // alert the user that the field isn't available?
+      }
+      if(this.ticketFields('custom_field_' + trackerField.requirement_id)) {
+        this.ticketFields('custom_field_' + trackerField.requirement_id).disable();
+      } else {
+        // alert the user that the field isn't available?
+      }
+      
       // assign global variables
       if (this.setting('editable_form') === true) {
         this.editableForm = true;
@@ -127,19 +141,15 @@
       if (this.setting('production_on') === true) {
         this.productionOn = true;
       }
-      this.requesterId = this.ticket().requester().id();
       this.setUpSizes();
+      this.ajax('fetchUserFromZendesk');
 
       // show home page
       this.switchTo('home');
     },
-    // init: function(e) {
-    //   if(e) {e.preventDefault();}
-    //   this.showForm();
-    // },
     initNewShipment: function(e) {
       if(e) {e.preventDefault();}
-      this.showForm();
+      this.showShipmentForm();
     },
     initReturnShipment: function(e) {
       if(e) {e.preventDefault();}
@@ -147,80 +157,49 @@
     },
     initValidateAddress: function(e) {
       if(e) {e.preventDefault();}
-      
+      this.showValidateForm();
     },
     initTrackShipment: function(e) {
       if(e) {e.preventDefault();}
 
     },
-    setUpSizes: function(){
-      this.sizes = {
-        'small': {
-          'height': this.setting('small_size_height') || 3,
-          'weight': this.setting('small_size_weight') || 5,
-          'width': this.setting('small_size_width') || 5,
-          'length': this.setting('small_size_length') || 5
-        },
-        'medium': {
-          'height': this.setting('medium_size_height') || 6,
-          'weight': this.setting('medium_size_weight') || 7,
-          'width': this.setting('medium_size_width') || 7,
-          'length': this.setting('medium_size_length' || 7)
-        },
-        'large': {
-          'height': this.setting('large_size_height') || 12,
-          'weight': this.setting('large_size_weight') || 14,
-          'width': this.setting('large_size_width') || 14,
-          'length': this.setting('large_size_length') || 14
-        }
-      };
+    
+    showShipmentForm: function(response) {
+      var html = this.renderTemplate('_toAddressForm');
+      // if no address is supplied just grab the user address from their profile
+      this.ajax('fetchUserFromZendesk');
+      this.switchTo('shipForm', {
+        "show": this.editableForm
+      });
+      this.$('.to_address_container').html(html);
+      this.setUpShipToForm( this.requesterAddress );
+      this.setUpShipFromForm();
     },
-    showForm: function(response) {
+    showValidateForm: function(response) {
+      var html = this.renderTemplate('_toAddressForm');
       if(response) {
         if(!response.message) {
           // TODO ask if Agent wants to update user with validated address
-          this.switchTo('form', {
-            "show": this.editableForm,
+          this.switchTo('validateForm', {
             "message": "Address validated!"
           });
-          this.$('.create_address').hide();
+          this.$('.to_address_container').html(html);
         } else {
-          this.switchTo('form', {
-            "show": this.editableForm,
+          this.switchTo('validateForm', {
             "message": response.message
           });
-          // this.$('.create_shipment').prop('disabled', true);
+          this.$('.to_address_container').html(html);
         }
         this.setUpShipToForm(response.address); // fills in form with validated address details
       } else {
         // if no address is supplied just grab the user address from their profile
-        this.ajax('fetchUserFromZendesk');
-        this.switchTo('form', {
-          "show": this.editableForm
-        });
-        this.setUpShipToForm();
+        // this.ajax('fetchUserFromZendesk');
+        this.switchTo('validateForm');
+        this.$('.to_address_container').html(html);
+        this.setUpShipToForm(this.requesterAddress);
       }
-      
     },
-    setUpShipToForm: function(address) {
-      if(address) {
-        // if an address is passed, use that to fill in the destination form
-        this.$('input[name=name]').val(address.name);
-        this.$('input[name=address]').val(address.street1);
-        this.$('input[name=city]').val(address.city);
-        this.$('input[name=state]').val(address.state);
-        this.$('input[name=zip_code]').val(address.zip);
-        this.$('input[name=country]').val(address.country);
-      }
-      // fill in the origin form (conditionally shown)
-      this.$('input[name=origin_name]').val(this.setting("company_name"));
-      this.$('input[name=origin_address]').val(this.setting("business_address"));
-      this.$('input[name=origin_city]').val(this.setting("city"));
-      this.$('input[name=origin_state]').val(this.setting("state"));
-      this.$('input[name=origin_zip_code]').val(this.setting("zip_code"));
-      this.$('input[name=origin_country]').val(this.setting("country_code"));
-      
-    },
+
     onAddressSubmitted: function(e) { // validate the address
       if (e) { e.preventDefault(); }
       // destination address
@@ -240,7 +219,7 @@
       this.ajax('verifyAddress', addressID);
     },
     onVerifyAddressDone: function(response) {
-      this.showForm(response);
+      this.showValidateForm(response);
     },
     onShipmentSubmitted: function(e) {
       // when creating a shipment
@@ -347,29 +326,7 @@
       this.ajax('updateTicketComment', comment, response.tracking_code);
     },
 
-    showUpdateUserOption: function() {
-      this.$('.update-confirm').fadeIn();
-      this.$('.create').fadeOut();
-    },
-    onUserFetched: function(data) {
-      this.userObj = data.user;
-      var user = this.userObj;
-      this.$('input[name=name]').val(user.name);
-      // this.$('input[name=email]').val(user.email);
-      if (user.user_fields) {
-        this.$('input[name=address]').val(user.user_fields[this.fmtd(this.setting('user_address_field'))]);
-        this.$('input[name=city]').val(user.user_fields[this.fmtd(this.setting('user_city_field'))]);
-        this.$('input[name=state]').val(user.user_fields[this.fmtd(this.setting('user_state_field'))]);
-        if( user.user_fields[this.fmtd(this.setting('user_country_field'))] ) {
-          this.$('input[name=country]').val(user.user_fields[this.fmtd(this.setting('user_country_field'))].substr(0,2));
-        }
-        if ( user.user_fields[this.fmtd(this.setting('user_zip_field'))] ) {
-          this.$('input[name=zip_code]').val(user.user_fields[this.fmtd(this.setting('user_zip_field'))].match(/[a-z0-9]/ig).join(""));
-        }
-      }
-    },
-
-
+    // changed events
     onSizeChanged: function(event) {
       var sizeSelected = this.$(event.target).val();
       if (sizeSelected == 'custom') {
@@ -382,12 +339,32 @@
     onRequesterChanged: function() {
       if (this.ticket().requester() &&
           this.ticket().requester().id()) {
-        this.currentUserId = this.ticket().requester().id();
+        // this.currentUserId = this.ticket().requester().id();
+        console.log("Fetching new requester info");
         this.ajax('fetchUserFromZendesk');
       }
     },
 
-    // User updates
+    // User functions
+    onUserFetched: function(data) {
+      var user = data.user,
+        address = {
+          name: user.name
+        };
+      if (user.user_fields) {
+        address.street1 = user.user_fields[this.fmtd(this.setting('user_address_field'))];
+        address.city = user.user_fields[this.fmtd(this.setting('user_city_field'))];
+        address.state = user.user_fields[this.fmtd(this.setting('user_state_field'))];
+        if( user.user_fields[this.fmtd(this.setting('user_country_field'))] ) {
+          address.country = user.user_fields[this.fmtd(this.setting('user_country_field'))].substr(0,2);
+        }
+        if ( user.user_fields[this.fmtd(this.setting('user_zip_field'))] ) {
+          address.zip = user.user_fields[this.fmtd(this.setting('user_zip_field'))].match(/[a-z0-9]/ig).join("");
+        }
+      }
+      this.requesterAddress = address;
+      this.setUpShipToForm(address);
+    },
     onUserUpdated: function(e) {
       var self = this,
         newVal = this.$(e.target).val();
@@ -413,21 +390,25 @@
           break;
       }
     },
-      // TODO: dry up these two
+    showUpdateUserOption: function() {
+      this.$('.update-confirm').fadeIn();
+      this.$('.create').fadeOut();
+    },
     userUpdateConfirm: function(e) {
       e.preventDefault();
       this.ajax('updateUser');
-      this.$('#update-confirm').fadeOut();
-      this.userNewParams = null;
-      this.onShipmentSubmitted();
+      this.endUserUpdatePrompt();
     },
     userUpdateDecline: function(e) {
       e.preventDefault();
+      this.endUserUpdatePrompt();
+    },
+    endUserUpdatePrompt: function() {
       this.$('.update-confirm').fadeOut();
       this.userNewParams = null;
       this.onShipmentSubmitted();
     },
-    // 
+    // token
     token: function() {
       if (this.setting('production_on') === true) {
         return btoa(this.setting('easypost_production_token') + ":");
@@ -435,6 +416,7 @@
         return btoa(this.setting('easypost_testing_token') + ":");
       }
     },
+    // getters
     toAddress: function() {
       return {
         name:     this.$('input[name=name]').val(),
@@ -458,7 +440,50 @@
         phone:    this.$('input[name=origin_phone]').val() || this.setting('phone_number')
       };
     },
-
+    // Setters
+    setUpSizes: function(){
+      this.sizes = {
+        'small': {
+          'height': this.setting('small_size_height') || 3,
+          'weight': this.setting('small_size_weight') || 5,
+          'width': this.setting('small_size_width') || 5,
+          'length': this.setting('small_size_length') || 5
+        },
+        'medium': {
+          'height': this.setting('medium_size_height') || 6,
+          'weight': this.setting('medium_size_weight') || 7,
+          'width': this.setting('medium_size_width') || 7,
+          'length': this.setting('medium_size_length' || 7)
+        },
+        'large': {
+          'height': this.setting('large_size_height') || 12,
+          'weight': this.setting('large_size_weight') || 14,
+          'width': this.setting('large_size_width') || 14,
+          'length': this.setting('large_size_length') || 14
+        }
+      };
+    },
+    setUpShipToForm: function(address) {
+      if(address) {
+        // if an address is passed, use that to fill in the destination form
+        this.$('input[name=name]').val(address.name);
+        this.$('input[name=address]').val(address.street1);
+        this.$('input[name=city]').val(address.city);
+        this.$('input[name=state]').val(address.state);
+        this.$('input[name=zip_code]').val(address.zip);
+        this.$('input[name=country]').val(address.country);
+      }
+    },
+    setUpShipFromForm: function() {
+      // fill in the origin form (conditionally shown)
+      this.$('input[name=origin_name]').val(this.setting("company_name"));
+      this.$('input[name=origin_address]').val(this.setting("business_address"));
+      this.$('input[name=origin_city]').val(this.setting("city"));
+      this.$('input[name=origin_state]').val(this.setting("state"));
+      this.$('input[name=origin_zip_code]').val(this.setting("zip_code"));
+      this.$('input[name=origin_country]').val(this.setting("country_code"));
+      
+    },
   // --------- UTILITY FUNCTIONS --------- //
     fmtd: function(str) {
       return str.toLowerCase().replace(' ', '_');
